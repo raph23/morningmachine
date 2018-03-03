@@ -5,7 +5,7 @@ from datetime import datetime
 import credentials
 
 # start cron job at 7:15AM
-WAIT_UNTIL_T_TIME = 2 #75*60 # app pauses after rain detected (75 minutes, until 8:30AM)
+WAIT_UNTIL_T_TIME = 75*60 # app pauses after rain detected (75 minutes, until 8:30AM)
 APP_RUN_TIME = 45*60 # run time (45 minutes, until 9:15AM)
 MESSAGE_DELAY = 15 # delay in receiving push notification
 
@@ -193,7 +193,7 @@ def main():
 	weather_hourly = get_hourly_weather()
 
 	rain = parse_weather(weather_hourly)
-	rain = 2
+	# rain = 2
 
 	if rain > 0:
 
