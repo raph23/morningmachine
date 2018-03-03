@@ -7,6 +7,7 @@ import credentials
 # start cron job at 7:15AM
 WAIT_UNTIL_T_TIME = 2 #75*60 # app pauses after rain detected (75 minutes, until 8:30AM)
 APP_RUN_TIME = 45*60 # run time (45 minutes, until 9:15AM)
+MESSAGE_DELAY = 15 # delay in receiving push notification
 
 # end points
 WEATHER_CONDITIONS_ENDPOINT = credentials.WEATHER_CONDITIONS_ENDPOINT
@@ -88,9 +89,7 @@ def print_trains(et):
 	arrival_time_string = time_string(arrival_time)
 	nt_arrival_time_string = time_string(nt_arrival_time)
 
-	current = "Train departing at %s." % (predicted_time_string)
-	catch = "Get to work at %s." % (arrival_time_string)
-	nt = "The next train will get you to work at %s." % (nt_arrival_time_string)
+	t_info_message = "Train departing at %s\nCatching this one will get you to work at %s\nThe next train will get you to work at %s" % (predicted_time_string, arrival_time_string, nt_arrival_time_string)
 
 	mbta_limit = 0
 	countdown = leave_home_time
@@ -98,17 +97,13 @@ def print_trains(et):
 	# countdown either 60 seconds or until 0
 	while (mbta_limit <= MBTA_REFRESH_TIME) and (countdown > 0):
 
-		if countdown == 120:
+		if countdown == (120 + MESSAGE_DELAY):
 
-			two_minute_message = "%s\nLeave in 2 MINUTES to %s\n%s" % (current, catch.lower(), nt)
+			send_message({"value1":"Leave in 2 minutes:", "value2":t_info_message})
 
-			send_message({"value2":two_minute_message})
+		if countdown == (0 + MESSAGE_DELAY):
 
-		if countdown == 15:
-
-			now_message = "Leave NOW!\n%s\n%s\n%s" % (current, catch, nt)
-
-			send_message({"value2":now_message})
+			send_message({"value1":"Leave NOW!", "value2":t_info_message})
 
 		mbta_limit = mbta_limit + 1
 		countdown = countdown - 1
@@ -174,21 +169,21 @@ def parse_weather(w):
 
 			if int(hour["qpf"]["metric"]) > 0:
 				rain += 1
-				hourly_message =  "%s: %s (%scm, %s percent chance), feels like %s.\n" % (hour["FCTTIME"]["civil"], hour["wx"].lower(), hour["qpf"]["metric"], hour["pop"], hour["feelslike"]["metric"])
+				hourly_message +=  "%s: %s (%scm, %s percent chance), feels like %s\n" % (hour["FCTTIME"]["civil"], hour["wx"].lower(), hour["qpf"]["metric"], hour["pop"], hour["feelslike"]["metric"])
 
 			else:
-				hourly_message = "%s: %s, feels like %s.\n" % (hour["FCTTIME"]["civil"], hour["wx"].lower(), hour["feelslike"]["metric"])
+				hourly_message += "%s: %s, feels like %s\n" % (hour["FCTTIME"]["civil"], hour["wx"].lower(), hour["feelslike"]["metric"])
 
 	if rain == 0:
-		hourly_message = "You should bike today!"
+		hourly_message_title = "You should bike today:"
 
 	else:
-		hourly_message += "It's raining. You should take the T today!"
+		hourly_message_title = "It's raining. You should take the T today:"
 
-	send_message({"value2":hourly_message})
+	send_message({"value1":hourly_message_title, "value2":hourly_message})
 
 	return rain
-
+ 
 def main():
 
 	weater_conditions = get_conditions_weather()
@@ -198,7 +193,7 @@ def main():
 	weather_hourly = get_hourly_weather()
 
 	rain = parse_weather(weather_hourly)
-	# rain = 2
+	rain = 2
 
 	if rain > 0:
 
