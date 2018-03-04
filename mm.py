@@ -40,17 +40,17 @@ def sort_key(d):
 
 def get_conditions_weather():
     response = requests.get(WEATHER_CONDITIONS_ENDPOINT)
-    print("%s -- %s -- %s" % (datetime.now(), response.url, response))
+    print_response(response)
     return response.json()
 
 def get_hourly_weather():
     response = requests.get(WEATHER_HOURLY_ENDPOINT)
-    print("%s -- %s -- %s" % (datetime.now(), response.url, response))
+    print_response(response)
     return response.json()
 
 def get_trains():
     response = requests.get(MBTA_ENDPOINT, params=mbta_parameters)
-    print("%s -- %s -- %s" % (datetime.now(), response.url, response))
+    print_response(response)
     trains = response.json()
 
     # sort trains on departure time
@@ -60,11 +60,25 @@ def get_trains():
 def send_message(m):
 	print("%s -- message -- %s" % (datetime.now(), m))
 	response = requests.post(IFTTT_ENDPOINT, data=m)
-	print("%s -- %s -- %s" % (datetime.now(), response.url, response))
+	print_response(response)
+	return
 
 def time_string(t):
 	ts = time.strftime(TIME_FORMAT, time.localtime(t))
 	return ts
+
+def print_response(r):
+	print("%s -- %s -- %s" % (datetime.now(), r.url, r))
+	return
+
+def day_message():
+	# monday = 0, sunday = 6
+	day_of_week = datetime.today().weekday()
+
+	if day_of_week == 0:
+		send_message({"value2":"Bring your water bottle!"})
+
+	return
 
 def print_trains(et):
 
@@ -144,6 +158,8 @@ def parse_trains(t):
 
 		time_now = time.time()
 
+	return
+
 def parse_conditions(w):
 
 	greeting = "Good morning %s!" % (MY_NAME)
@@ -151,6 +167,8 @@ def parse_conditions(w):
 	image_url = w["current_observation"]["icon_url"]
 
 	send_message({"value1":greeting,"value2":conditions_message,"value3":image_url})
+
+	return
 
 def parse_weather(w):
 
@@ -189,6 +207,8 @@ def main():
 	weater_conditions = get_conditions_weather()
 
 	parse_conditions(weater_conditions)
+
+	day_message()
 
 	weather_hourly = get_hourly_weather()
 
