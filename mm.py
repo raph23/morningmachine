@@ -103,7 +103,7 @@ def print_trains(et):
 	arrival_time_string = time_string(arrival_time)
 	nt_arrival_time_string = time_string(nt_arrival_time)
 
-	t_info_message = "Train departing at %s\nCatching this one will get you to work at %s\nThe next train will get you to work at %s" % (predicted_time_string, arrival_time_string, nt_arrival_time_string)
+	t_info_message = "Train departing at %s\nCatching this train will get you to work at %s\nThe next train will get you to work at %s" % (predicted_time_string, arrival_time_string, nt_arrival_time_string)
 
 	mbta_limit = 0
 	countdown = leave_home_time
