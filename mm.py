@@ -1,5 +1,6 @@
 import requests
 import time
+import json
 from pprint import pprint
 from datetime import datetime
 import credentials
@@ -35,22 +36,34 @@ mbta_parameters = {
 			  "format": MBTA_FORMAT,
 			  }
 
+def dump(r, n):
+	time_now = time.time()
+	time_now_string = time.strftime('%m-%d-%Y', time.localtime(time_now))
+	file_name = ("api_response/%s_%s.json") % (time_now_string, n)
+
+	with open(file_name, 'w') as outfile:
+	    json.dump(r, outfile)
+
 def sort_key(d):
     return d['pre_dt']
 
 def get_conditions_weather():
     response = requests.get(WEATHER_CONDITIONS_ENDPOINT)
     print_response(response)
+    dump(response.json(), "get_conditions_weather")
     return response.json()
 
 def get_hourly_weather():
     response = requests.get(WEATHER_HOURLY_ENDPOINT)
     print_response(response)
+    dump(response.json(), "get_hourly_weather")
+
     return response.json()
 
 def get_trains():
     response = requests.get(MBTA_ENDPOINT, params=mbta_parameters)
     print_response(response)
+    dump(response.json(), "get_trains")
     trains = response.json()
 
     # sort trains on departure time
@@ -58,7 +71,7 @@ def get_trains():
     return sorted_trains
 
 def send_message(m):
-	print("%s -- message -- %s" % (datetime.now(), m))
+	print("%s -- <Message> -- %s" % (datetime.now(), m))
 	response = requests.post(IFTTT_ENDPOINT, data=m)
 	print_response(response)
 	return
@@ -68,7 +81,13 @@ def time_string(t):
 	return ts
 
 def print_response(r):
-	print("%s -- %s -- %s" % (datetime.now(), r.url, r))
+	print("%s -- %s -- %s" % (datetime.now(), r, r.url))
+	return
+
+def print_hourly(c):
+
+	for conditions in c:
+		print("%s -- <%s> -- %s" % (datetime.now(), conditions["name"], conditions["hour"]))
 	return
 
 def day_message():
@@ -173,10 +192,12 @@ def parse_conditions(w):
 def parse_weather(w):
 
 	rain = 0
-
 	now_day = datetime.now().day
-
 	hourly_message = ""
+	hourly_conditions = []
+	precipitation_by_hour = {"name": "Precipitation", "hour": {}}
+	percent_by_hour = {"name": "Percent", "hour": {}}
+	temperature_by_hour = {"name": "Temperature", "hour": {}}
 
 	for hour in w["hourly_forecast"]:
 
@@ -184,6 +205,10 @@ def parse_weather(w):
 		day_int = int(hour["FCTTIME"]["mday"])
 
 		if ((hour_int == 8) or (hour_int == 9) or (hour_int == 17) or (hour_int == 18)) and day_int == now_day:
+
+			precipitation_by_hour["hour"][hour_int] = hour["qpf"]["metric"]
+			temperature_by_hour["hour"][hour_int] = hour["feelslike"]["metric"]
+			percent_by_hour["hour"][hour_int] = hour["pop"]
 
 			if int(hour["qpf"]["metric"]) > 0:
 				rain += 1
@@ -200,6 +225,12 @@ def parse_weather(w):
 
 	send_message({"value1":hourly_message_title, "value2":hourly_message})
 
+	hourly_conditions.append(precipitation_by_hour)
+	hourly_conditions.append(percent_by_hour)
+	hourly_conditions.append(temperature_by_hour)
+
+	print_hourly(hourly_conditions)
+
 	return rain
  
 def main():
@@ -213,22 +244,22 @@ def main():
 	weather_hourly = get_hourly_weather()
 
 	rain = parse_weather(weather_hourly)
+	
 	# rain = 2
-
 	if rain > 0:
 
-		print("%s: Waiting for T info for %s seconds..." % (datetime.now(), WAIT_UNTIL_T_TIME))
+		print("%s -- Waiting for T info for %s seconds..." % (datetime.now(), WAIT_UNTIL_T_TIME))
 
 		time.sleep(WAIT_UNTIL_T_TIME)
 
-		print("%s: Getting T info" % (datetime.now()))
+		print("%s -- Getting T info" % (datetime.now()))
 
 		trains = get_trains()
 
 		parse_trains(trains)
 
 	else:
-		print("%s: No rain, exiting app!" % (datetime.now()))
+		print("%s -- No rain, exiting app!" % (datetime.now()))
 
 	return
 
