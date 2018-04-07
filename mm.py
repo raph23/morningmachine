@@ -27,7 +27,7 @@ MY_TIME_TO_T = 240 # time to get to the T stop in seconds (4 minutes)
 MY_TIME_TO_WORK = 600 # time to get to work in seconds (10 minutes)
 
 # other variables
-TIME_FORMAT = "%H:%M" # "%H:%M:%S"
+TIME_FORMAT = "%H:%M" # or "%H:%M:%S"
 MBTA_REFRESH_TIME = 60 # in seconds
 
 mbta_parameters = {
@@ -43,27 +43,21 @@ def dump(r, n):
 
 	with open(file_name, 'w') as outfile:
 	    json.dump(r, outfile)
+    return
 
 def sort_key(d):
     return d['pre_dt']
 
-def get_conditions_weather():
-    response = requests.get(WEATHER_CONDITIONS_ENDPOINT)
-    print_response(response)
-    dump(response.json(), "get_conditions_weather")
-    return response.json()
-
-def get_hourly_weather():
-    response = requests.get(WEATHER_HOURLY_ENDPOINT)
-    print_response(response)
-    dump(response.json(), "get_hourly_weather")
-
-    return response.json()
+def get_api(endpoint, name):
+	response = requests.get(endpoint)
+	print_response(response)
+	dump(response.json(), name)
+	return response.json()
 
 def get_trains():
     response = requests.get(MBTA_ENDPOINT, params=mbta_parameters)
     print_response(response)
-    dump(response.json(), "get_trains")
+    dump(response.json(), "TRAINS")
     trains = response.json()
 
     # sort trains on departure time
@@ -85,7 +79,6 @@ def print_response(r):
 	return
 
 def print_hourly(c):
-
 	for conditions in c:
 		print("%s -- <%s> -- %s" % (datetime.now(), conditions["name"], conditions["hour"]))
 	return
@@ -96,7 +89,6 @@ def day_message():
 
 	if day_of_week == 0:
 		send_message({"value2":"Bring your water bottle!"})
-
 	return
 
 def print_trains(et):
@@ -141,7 +133,6 @@ def print_trains(et):
 		mbta_limit = mbta_limit + 1
 		countdown = countdown - 1
 		time.sleep(1)
-
 	return
 
 def parse_trains(t):
@@ -176,7 +167,6 @@ def parse_trains(t):
 		t = get_trains()
 
 		time_now = time.time()
-
 	return
 
 def parse_conditions(w):
@@ -186,7 +176,6 @@ def parse_conditions(w):
 	image_url = w["current_observation"]["icon_url"]
 
 	send_message({"value1":greeting,"value2":conditions_message,"value3":image_url})
-
 	return
 
 def parse_weather(w):
@@ -228,20 +217,18 @@ def parse_weather(w):
 	hourly_conditions.append(precipitation_by_hour)
 	hourly_conditions.append(percent_by_hour)
 	hourly_conditions.append(temperature_by_hour)
-
 	print_hourly(hourly_conditions)
-
 	return rain
  
 def main():
 
-	weater_conditions = get_conditions_weather()
+	weater_conditions = get_api(WEATHER_CONDITIONS_ENDPOINT, "WEATHER_CONDITIONS")
 
 	parse_conditions(weater_conditions)
 
 	day_message()
 
-	weather_hourly = get_hourly_weather()
+	weather_hourly = get_api(WEATHER_HOURLY_ENDPOINT, "WEATHER_HOURLY")
 
 	rain = parse_weather(weather_hourly)
 	
@@ -260,7 +247,6 @@ def main():
 
 	else:
 		print("%s -- No rain, exiting app!" % (datetime.now()))
-
 	return
 
 main()
