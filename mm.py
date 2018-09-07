@@ -14,9 +14,8 @@ MY_STOP = "70018" # T stop: Chinatown - Outbound
 MY_TIME_TO_T = 240 # time to get to the T stop in seconds (4 minutes)
 MY_TIME_TO_WORK = 600 # time to get to work in seconds (10 minutes)
 
-# start cron job at 7:15AM
+# times: start cron job at 7:15AM
 WAIT_UNTIL_T_TIME = 75*60 # app pauses after rain detected (75 minutes, until 8:30AM)
-
 APP_RUN_TIME = 45*60 # run time (45 minutes, until 9:15AM)
 MESSAGE_DELAY = 15 # delay in receiving push notification
 
@@ -36,7 +35,6 @@ MBTA_PARAMETERS = {
 # other variables
 TIME_FORMAT = "%H:%M" # or "%H:%M:%S"
 
-
 def dump(r, n):
 	time_now = time.time()
 	time_now_string = time.strftime('%m-%d-%Y', time.localtime(time_now))
@@ -44,7 +42,6 @@ def dump(r, n):
 
 	with open(file_name, 'w') as outfile:
 	    json.dump(r, outfile)
-	
 	return
 
 def get_api(endpoint, name):
@@ -64,7 +61,6 @@ def get_trains():
     # print(LINE)
 
     trains = train_data["data"]
-
     train_departures = []
 
     for train in trains:
