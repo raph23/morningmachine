@@ -5,20 +5,8 @@ from pprint import pprint
 from datetime import datetime
 import credentials
 
-# start cron job at 7:15AM
-WAIT_UNTIL_T_TIME = 75*60 # app pauses after rain detected (75 minutes, until 8:30AM)
-APP_RUN_TIME = 45*60 # run time (45 minutes, until 9:15AM)
-MESSAGE_DELAY = 15 # delay in receiving push notification
-
-# end points
-WEATHER_CONDITIONS_ENDPOINT = credentials.WEATHER_CONDITIONS_ENDPOINT
-WEATHER_HOURLY_ENDPOINT = credentials.WEATHER_HOURLY_ENDPOINT
-MBTA_ENDPOINT = "http://realtime.mbta.com/developer/api/v2/predictionsbystop"
-IFTTT_ENDPOINT = credentials.IFTTT_ENDPOINT
-
-# mbta API info
-MBTA_FORMAT = "json"
-MBTA_TOKEN = credentials.MBTA_TOKEN
+# debug
+LINE = "\n ----------------------------- \n"
 
 # my info
 MY_NAME = "Raph"
@@ -26,15 +14,28 @@ MY_STOP = "70018" # T stop: Chinatown - Outbound
 MY_TIME_TO_T = 240 # time to get to the T stop in seconds (4 minutes)
 MY_TIME_TO_WORK = 600 # time to get to work in seconds (10 minutes)
 
+# start cron job at 7:15AM
+WAIT_UNTIL_T_TIME = 75*60 # app pauses after rain detected (75 minutes, until 8:30AM)
+
+APP_RUN_TIME = 45*60 # run time (45 minutes, until 9:15AM)
+MESSAGE_DELAY = 15 # delay in receiving push notification
+
+# end points
+WEATHER_CONDITIONS_ENDPOINT = credentials.WEATHER_CONDITIONS_ENDPOINT
+WEATHER_HOURLY_ENDPOINT = credentials.WEATHER_HOURLY_ENDPOINT
+IFTTT_ENDPOINT = credentials.IFTTT_ENDPOINT
+MBTA_ENDPOINT = "https://api-v3.mbta.com/predictions?filter[stop]=" + MY_STOP # https://api-v3.mbta.com/stops/70018
+
+# mbta variables
+MBTA_TIME_FORMAT = '%Y-%m-%dT%H:%M:%S-04:00'
+MBTA_REFRESH_TIME = 60 # in seconds
+MBTA_PARAMETERS = {
+			  "api_key": credentials.MBTA_TOKEN,
+			  }
+
 # other variables
 TIME_FORMAT = "%H:%M" # or "%H:%M:%S"
-MBTA_REFRESH_TIME = 60 # in seconds
 
-mbta_parameters = {
-			  "api_key": MBTA_TOKEN,
-			  "stop": MY_STOP,
-			  "format": MBTA_FORMAT,
-			  }
 
 def dump(r, n):
 	time_now = time.time()
@@ -43,10 +44,8 @@ def dump(r, n):
 
 	with open(file_name, 'w') as outfile:
 	    json.dump(r, outfile)
-    return
-
-def sort_key(d):
-    return d['pre_dt']
+	
+	return
 
 def get_api(endpoint, name):
 	response = requests.get(endpoint)
@@ -55,17 +54,36 @@ def get_api(endpoint, name):
 	return response.json()
 
 def get_trains():
-    response = requests.get(MBTA_ENDPOINT, params=mbta_parameters)
+    response = requests.get(MBTA_ENDPOINT, params=MBTA_PARAMETERS)
     print_response(response)
     dump(response.json(), "TRAINS")
-    trains = response.json()
+    train_data = response.json()
 
-    # sort trains on departure time
-    sorted_trains = sorted(trains["mode"][0]["route"][0]["direction"][0]["trip"], key=sort_key, reverse=False)
+    # print(LINE)
+    # pprint(train_data)
+    # print(LINE)
+
+    trains = train_data["data"]
+
+    train_departures = []
+
+    for train in trains:
+    	# pprint(train["attributes"]["departure_time"])
+    	epoch_time = int(time.mktime(time.strptime(train["attributes"]["departure_time"], MBTA_TIME_FORMAT)))
+    	train_departures.append(epoch_time)
+
+    sorted_trains = sorted(train_departures)
+
+    # print(LINE)
+    # pprint(sorted_trains)
+    # print(LINE)
+   
     return sorted_trains
 
 def send_message(m):
 	print("%s -- <Message> -- %s" % (datetime.now(), m))
+
+	# DEBUG: ENABLE/DISABLE IFFT
 	response = requests.post(IFTTT_ENDPOINT, data=m)
 	print_response(response)
 	return
@@ -94,8 +112,12 @@ def day_message():
 def print_trains(et):
 
 	# predicted departure time fist 2 trains (epoch integer)
-	predicted_time = int(et[0]["pre_dt"])
-	nt_predicted_time = int(et[1]["pre_dt"])
+	predicted_time = et[0]
+	nt_predicted_time = et[1]
+
+	# DEBUG
+	# print(predicted_time)
+	# print(nt_predicted_time)
 
 	# current time and delta between current time (epoch integer) and predicted departure time 
 	current_time = int(time.time())
@@ -114,6 +136,10 @@ def print_trains(et):
 	arrival_time_string = time_string(arrival_time)
 	nt_arrival_time_string = time_string(nt_arrival_time)
 
+	# DEBUG
+	# print(LINE)
+	# print(predicted_time_string)
+
 	t_info_message = "Train departing at %s\nCatching this train will get you to work at %s\nThe next train will get you to work at %s" % (predicted_time_string, arrival_time_string, nt_arrival_time_string)
 
 	mbta_limit = 0
@@ -121,6 +147,8 @@ def print_trains(et):
 
 	# countdown either 60 seconds or until 0
 	while (mbta_limit <= MBTA_REFRESH_TIME) and (countdown > 0):
+
+		# print(countdown)
 
 		if countdown == (120 + MESSAGE_DELAY):
 
@@ -152,7 +180,7 @@ def parse_trains(t):
 		for train in t:
 			
 			# predicted departure and current time, delta between the two (epoch integer)
-			p_t = int(train["pre_dt"])
+			p_t = train
 			c_t = int(time.time())
 			t_d = (p_t - c_t)
 
@@ -218,6 +246,7 @@ def parse_weather(w):
 	hourly_conditions.append(percent_by_hour)
 	hourly_conditions.append(temperature_by_hour)
 	print_hourly(hourly_conditions)
+
 	return rain
  
 def main():
@@ -232,7 +261,9 @@ def main():
 
 	rain = parse_weather(weather_hourly)
 	
-	# rain = 2
+	# DEBUG: FORCE RAIN
+	# rain = 1
+	
 	if rain > 0:
 
 		print("%s -- Waiting for T info for %s seconds..." % (datetime.now(), WAIT_UNTIL_T_TIME))
@@ -247,6 +278,7 @@ def main():
 
 	else:
 		print("%s -- No rain, exiting app!" % (datetime.now()))
+
 	return
 
 main()
